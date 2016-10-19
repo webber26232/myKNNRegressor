@@ -72,7 +72,7 @@ def recommend(URL,testScale,logList,criterionList,predictorList,kList,weightList
                         applyModel(trainingSet,users,corrMatrix,overlapNumMatrix,log,criterion,predictor,k,weight,overlapMeanMatrix,overlapSDMatrix)
             pass
             
-def applyModel(appliedSet,users,corrMatrix,overlapNumMatrix,log,criterion,predictor,k,weight,overlapMeanMatrix,overlapSDMatrix):
+def applyModel(appliedSet,users,corrMatrix,overlapNumMatrix,log,criterion,predictor,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []   
     for cursorIndex in appliedSet:
         kNN = []
@@ -87,158 +87,98 @@ def applyModel(appliedSet,users,corrMatrix,overlapNumMatrix,log,criterion,predic
                 index = binaryInsert(0,len(kNNCorr),kNNCorr,Corr)
                 kNN.insert(index,users[anotherIndex])
                 kNNCorr.insert(index,Corr)
-        errorList +=  predictor(users[cursorIndex],kNN,kNNCorr,k,weight,overlapMeanMatrix,overlapSDMatrix)
-    return {'log':log,'criterion':criterion,'predictor':predictor.__name__[:-9],'k':k,'weight':weight,'errorNum':len(errorList),'minError':min(errorList),'maxError':max(errorList),'meanError':sum(errorList)/len(errorList)}    
+        errorList +=  predictor(users[cursorIndex],kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix)
+    return {'log':log,'criterion':criterion,'predictor':predictor.__name__[:-9],'k':k,'weight':weightFLG,'errorNum':len(errorList),'minError':min(errorList),'maxError':max(errorList),'meanError':sum(errorList)/len(errorList)}    
           
         
-def meanPredictor(user,kNN,kNNCorr,k,weight,overlapMeanMatrix,overlapSDMatrix):
+def meanPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []
-    if weight:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            valueSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        valueSum += kNN[kIndex][movieIndex]
-                        kCount += 1
-
-            try:
-                errorList.append(valueSum / kCount - user[movieIndex])
-            except:
-                None
-    else:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            valueSum = 0.0
-            weightSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        valueSum += kNN[kIndex][movieIndex] * kNNCorr[kIndex]
-                        weightSum += kNNCorr[kIndex]
-                        kCount += 1
-            try:
-                errorList.append(valueSum / weightSum - user[movieIndex])
-            except:
-                if not kCount:
-                    errorList.append(valueSum / kCount - user[movieIndex])
+	for movieIndex in range(1,len(user)):
+		kCount = 0
+		valueSum = 0.0
+		weightSum = 0.0
+		if not user[movieIndex]:
+			for kIndex in range(len(kNN)):
+				if kCount >= k and kNNCorr[kIndex]<=0:
+						break
+				weight = kNNCorr[kIndex] if weightFLG else 1
+				if not kNN[kIndex][movieIndex]:
+					valueSum += kNN[kIndex][movieIndex] * weight
+					weightSum += weight
+					kCount += 1
+		try:
+			errorList.append(valueSum / weightSum - user[movieIndex])
+		except:
+			if not kCount:
+				errorList.append(valueSum / kCount - user[movieIndex])
     return errorList
 
-def differenPredictor(user,kNN,kNNCorr,k,weight,overlapMeanMatrix,overlapSDMatrix):
+def differenPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []
-    if weight:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            differSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        differSum += kNN[kIndex][movieIndex] - kNN[kIndex][-2]
-                        kCount += 1
+	for movieIndex in range(1,len(user)):
+		kCount = 0
+		differSum = 0.0
+		weightSum = 0.0
+		if not user[movieIndex]:
+			for kIndex in range(len(kNN)):
+				if kCount >= k and kNNCorr[kIndex]<=0:
+						break
+				weight = kNNCorr[kIndex] if weightFLG else 1
+				if not kNN[kIndex][movieIndex]:
+					differSum += (kNN[kIndex][movieIndex] - kNN[kIndex][-2]) * weight
+					weightSum += weight
+					kCount += 1
+		try:
+			errorList.append(differSum / weightSum + user[-2] - user[movieIndex])
+		except:
+			if not kCount:
+				errorList.append(differSum / kCount + user[-2] - user[movieIndex])
+    return errorList
 
-            try:
-                errorList.append(differSum / kCount + user[-2] - user[movieIndex])
-            except:
-                None
-    else:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            differSum = 0.0
-            weightSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        differSum += (kNN[kIndex][movieIndex] - kNN[kIndex][-2]) * kNNCorr[kIndex]
-                        weightSum += kNNCorr[kIndex]
-                        kCount += 1
-            try:
-                errorList.append(differSum / weightSum + user[-2] - user[movieIndex])
-            except:
-                if not kCount:
-                    errorList.append(differSum / kCount + user[-2] - user[movieIndex])
-    return errorList
-def zScorePredictor(user,kNN,kNNCorr,k,weight,overlapMeanMatrix,overlapSDMatrix):
+def zScorePredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []
-    if weight:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            zScoreSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        zScoreSum += (kNN[kIndex][movieIndex] - kNN[kIndex][-2]) / kNN[kIndex][-1]
-                        kCount += 1
-            try:
-                errorList.append(zScoreSum * user[-1] / kCount + user[-2] - user[movieIndex])
-            except:
-                None
-    else:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            zScoreSum = 0.0
-            weightSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        zScoreSum += (kNN[kIndex][movieIndex] - kNN[kIndex][-2]) * kNNCorr[kIndex] / kNN[kIndex][-1]
-                        weightSum += kNNCorr[kIndex]
-                        kCount += 1
-            try:
-                errorList.append(zScoreSum * user[-1] / weightSum + user[-2] - user[movieIndex])
-            except:
-                if not kCount:
-                    errorList.append(zScoreSum * user[-1] / kCount + user[-2] - user[movieIndex])
+	for movieIndex in range(1,len(user)):
+		kCount = 0
+		zScoreSum = 0.0
+		weightSum = 0.0
+		if not user[movieIndex]:
+			for kIndex in range(len(kNN)):
+				if kCount >= k and kNNCorr[kIndex]<=0:
+						break
+				weight = kNNCorr[kIndex] if weightFLG else 1
+				if not kNN[kIndex][movieIndex]:
+					zScoreSum += ((kNN[kIndex][movieIndex] - kNN[kIndex][-2]) * kNNCorr[kIndex] / kNN[kIndex][-1]) * weight
+					weightSum += weight
+					kCount += 1
+		try:
+			errorList.append(zScoreSum * user[-1] / weightSum + user[-2] - user[movieIndex])
+		except:
+			if not kCount:
+				errorList.append(zScoreSum * user[-1] / kCount + user[-2] - user[movieIndex])
     return errorList
-def webberPredictor(user,kNN,kNNCorr,k,weight,overlapMeanMatrix,overlapSDMatrix):
+
+def webberPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []
     cursorIndex = user[0]-1
-    if weight:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            zScoreSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        anotherIndex = kNN[kIndex][0]-1
-                        zScoreSum += (kNN[kIndex][movieIndex] - overlapMeanMatrix[cursorIndex][anotherIndex]) / overlapSDMatrix[cursorIndex][anotherIndex]
-                        kCount += 1
-            try:
-                errorList.append(zScoreSum * overlapSDMatrix[cursorIndex][anotherIndex] / kCount + overlapMeanMatrix[cursorIndex][anotherIndex] - user[movieIndex])
-            except:
-                None
-    else:
-        for movieIndex in range(1,len(user)):
-            kCount = 0
-            zScoreSum = 0.0
-            weightSum = 0.0
-            if not user[movieIndex]:
-                for kIndex in range(len(kNN)):
-                    if kCount >= k and kNNCorr[kIndex]<=0:
-                            break
-                    if not kNN[kIndex][movieIndex]:
-                        zScoreSum += (kNN[kIndex][movieIndex] - overlapMeanMatrix[cursorIndex][anotherIndex]) / overlapSDMatrix[cursorIndex][anotherIndex]
-                        weightSum += kNNCorr[kIndex]
-                        kCount += 1
-            try:
-                errorList.append(zScoreSum * overlapSDMatrix[cursorIndex][anotherIndex] / weightSum + overlapMeanMatrix[cursorIndex][anotherIndex] - user[movieIndex])
-            except:
-                if not kCount:
-                    errorList.append(zScoreSum * overlapSDMatrix[cursorIndex][anotherIndex] / kCount + overlapMeanMatrix[cursorIndex][anotherIndex] - user[movieIndex])
+	for movieIndex in range(1,len(user)):
+		kCount = 0
+		valueSum = 0.0
+		weightSum = 0.0
+		if not user[movieIndex]:
+			for kIndex in range(len(kNN)):
+				if kCount >= k and kNNCorr[kIndex]<=0:
+						break
+				weight = kNNCorr[kIndex] if weightFLG else 1
+				if not kNN[kIndex][movieIndex]:
+					anotherIndex = kNN[kIndex][0]-1
+					valueSum += ((kNN[kIndex][movieIndex] - overlapMeanMatrix[anotherIndex][cursorIndex]) / overlapSDMatrix[anotherIndex][cursorIndex] * overlapSDMatrix[cursorIndex][anotherIndex] + overlapMeanMatrix[cursorIndex][anotherIndex]) * weight
+					weightSum += weight
+					kCount += 1
+		try:
+			errorList.append(valueSum / weightSum - user[movieIndex])
+		except:
+			if not kCount:
+				errorList.append(valueSum / kCount - user[movieIndex])
     return errorList
     
 def binaryInsert(minIndex,maxIndex,list,element):
