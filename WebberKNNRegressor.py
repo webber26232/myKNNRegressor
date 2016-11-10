@@ -45,7 +45,7 @@ def recommend(URL,testScale,logList,criterionList,predictorList,kList,weightList
                 overlapSDMatrix[anotherIndex][cursorIndex] = anotherOverlapSD
                 
                 errorProductSum = 0.0
-                for overlapIndex in len(cursorOverlapList):
+                for overlapIndex in range(len(cursorOverlapList)):
                     errorProductSum += (cursorOverlapList[overlapIndex] - cursorOverlapMean) * (anotherOverlapList[overlapIndex] - anotherOverlapMean)
                 try:
                     Corr = errorProductSum / len(cursorOverlapList) / cursorOverlapSD / anotherOverlapSD
@@ -113,7 +113,7 @@ def meanPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix
 				errorList.append(valueSum / kCount - user[movieIndex])
     return errorList
 
-def differenPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
+def diviationPredictor(user,kNN,kNNCorr,k,weightFLG,overlapMeanMatrix,overlapSDMatrix):
     errorList = []
 	for movieIndex in range(1,len(user)):
 		kCount = 0
@@ -198,7 +198,7 @@ def calculateSD(list,mean):
         sumOfSquareError = 0.0
         for i in list:
             sumOfSquareError += math.square(i - mean)
-        return sumOfSquareError / len(list)
+        return math.sqrt(sumOfSquareError / len(list))
 
 def showTime(processTime,label='Time'):
     hour =  int(processTime) / 3600
